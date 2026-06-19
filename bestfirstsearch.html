@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>최상우선탐색(Best-First Search) 시뮬레이터 - 최고값 우선</title>
+    <style>
+        body {
+            font-family: 'Malgun Gothic', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f7f6;
+            color: #333;
+        }
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+        .control-panel {
+            flex: 1.2;
+            padding: 25px;
+            background-color: #fff;
+            box-shadow: 2px 0 12px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+        .control-panel h1 {
+            font-size: 24px;
+            margin-top: 0;
+            margin-bottom: 10px;
+            color: #0056b3;
+        }
+        .instructions {
+            background-color: #e3f2fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        .state-s { font-weight: bold; color: #d9534f; }
+        .state-g { font-weight: bold; color: #5cb85c; }
+        
+        .buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        button {
+            flex: 1;
+            padding: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: white;
+        }
+        button:active { transform: scale(0.98); }
+        #step-btn { background-color: #007bff; }
+        #step-btn:hover { background-color: #0069d9; }
+        #run-btn { background-color: #17a2b8; }
+        #run-btn:hover { background-color: #138496; }
+        #reset-btn { background-color: #6c757d; }
+        #reset-btn:hover { background-color: #5a6268; }
+
+        .lists-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .list-section h3 {
+            margin: 0 0 8px 0;
+            font-size: 16px;
+            color: #444;
+        }
+        .list-view {
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            padding: 12px;
+            min-height: 60px;
+            background-color: #f8f9fa;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-content: flex-start;
+        }
+        .list-item {
+            background-color: #e2e6ea;
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 15px;
+            font-weight: bold;
+            border: 1px solid #ced4da;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            animation: popIn 0.3s ease-out;
+        }
+        @keyframes popIn {
+            0% { transform: scale(0.8); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        #open-list .list-item {
+            border-color: #80bdff;
+            background-color: #e7f1ff;
+            color: #0056b3;
+        }
+        #close-list .list-item {
+            border-color: #adb5bd;
+            background-color: #6c757d;
+            color: white;
+        }
+
+        #log-section {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        #log-section h3 {
+            margin: 0 0 8px 0;
+            font-size: 16px;
+        }
+        #log {
+            flex-grow: 1;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            background-color: #fafafa;
+            overflow-y: auto;
+            font-size: 14px;
+            line-height: 1.6;
+            color: #555;
+            min-height: 150px;
+        }
+        #log p { margin: 0 0 8px 0; border-bottom: 1px dashed #eee; padding-bottom: 4px; }
+        #log p:last-child { border-bottom: none; }
+        .log-highlight { color: #d9534f; font-weight: bold; }
+
+        .graph-panel {
+            flex: 2;
+            padding: 25px;
+            display: flex;
+            flex-direction: column;
+            background-color: #f4f7f6;
+        }
+        .graph-panel h2 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            color: #333;
+            text-align: center;
+        }
+        #graph-container {
+            flex-grow: 1;
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        #graph-svg {
+            width: 100%;
+            height: 100%;
+            max-width: 800px;
+        }
+
+        /* SVG 그래프 스타일 */
+        line {
+            stroke: #b0bec5;
+            stroke-width: 3px;
+            transition: stroke 0.3s;
+        }
+        line.path { stroke: #FF9800; stroke-width: 5px; }
+
+        circle {
+            stroke: #90a4ae;
+            stroke-width: 3px;
+            fill: #fff;
+            transition: all 0.3s ease;
+        }
+        /* 상태별 노드 색상 */
+        .node-group.open circle { stroke: #03A9F4; fill: #E1F5FE; stroke-width: 4px; }
+        .node-group.close circle { stroke: #78909C; fill: #CFD8DC; }
+        .node-group.current circle { stroke: #FF9800; fill: #FFE082; stroke-width: 5px; transform: scale(1.1); transform-origin: center; }
+        .node-group.start circle { stroke: #d9534f; fill: #f2dede; }
+        .node-group.goal circle { stroke: #4CAF50; fill: #E8F5E9; stroke-width: 4px; }
+        .node-group.path circle { stroke: #FF9800; fill: #FFE082; stroke-width: 5px; }
+
+        text {
+            text-anchor: middle;
+            font-family: Arial, sans-serif;
+            pointer-events: none;
+        }
+        .node-label { font-size: 20px; font-weight: bold; fill: #333; }
+        .node-value { font-size: 15px; fill: #d9534f; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="control-panel">
+            <h1>최상우선탐색 시뮬레이터</h1>
+            <div class="instructions">
+                <strong>[탐색 규칙]</strong><br>
+                1. 시작 상태 <span class="state-s">A</span>에서 출발합니다.<br>
+                2. 현재 노드와 연결된 미방문 노드를 <strong>Open List</strong>에 넣습니다.<br>
+                3. Open List에 있는 노드 중 <strong>평가 함숫값이 가장 큰(높은) 노드</strong>를 다음 탐색 위치로 선택합니다.
+            </div>
+            
+            <div class="buttons">
+                <button id="step-btn">▶ 단계별 실행</button>
+                <button id="run-btn">⏩ 자동 실행</button>
+                <button id="reset-btn">🔄 초기화</button>
+            </div>
+
+            <div class="lists-container">
+                <div class="list-section">
+                    <h3>🟢 Open List (탐색 후보 - 함숫값 내림차순)</h3>
+                    <div id="open-list" class="list-view"></div>
+                </div>
+                <div class="list-section">
+                    <h3>⚫ Close List (방문 완료)</h3>
+                    <div id="close-list" class="list-view"></div>
+                </div>
+            </div>
+
+            <div id="log-section">
+                <h3>📜 탐색 과정 로그</h3>
+                <div id="log"></div>
+            </div>
+        </div>
+
+        <div class="graph-panel">
+            <h2>트리 탐색 시각화</h2>
+            <div id="graph-container">
+                <svg id="graph-svg" viewBox="0 0 800 500"></svg>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 💡 H와 K의 평가함수(value) 수정됨
+        const graphData = {
+            'A': { value: 2, children: ['B', 'C', 'D'] },
+            'B': { value: 8, children: ['E'] },
+            'C': { value: 7, children: ['F'] },
+            'D': { value: 6, children: ['G', 'H'] },
+            'E': { value: 5, children: ['I', 'J'] },
+            'F': { value: 4, children: [] },
+            'G': { value: 3, children: [] },
+            'H': { value: 7, children: ['K'] }, // H: 3 -> 7로 변경
+            'I': { value: 4, children: [] },
+            'J': { value: 4, children: [] },
+            'K': { value: 8, children: [] }  // K: 0 -> 8로 변경
+        };
+
+        const nodeCoords = {
+            'A': { x: 400, y: 50 },
+            'B': { x: 200, y: 170 },
+            'C': { x: 400, y: 170 },
+            'D': { x: 600, y: 170 },
+            'E': { x: 100, y: 300 },
+            'F': { x: 400, y: 300 },
+            'G': { x: 530, y: 300 },
+            'H': { x: 670, y: 300 },
+            'I': { x: 50, y: 430 },
+            'J': { x: 150, y: 430 },
+            'K': { x: 670, y: 430 } 
+        };
+
+        const startNode = 'A'; 
+        const goalNode = 'K'; 
+
+        let openList = []; 
+        let closeList = []; 
+        let cameFrom = {}; 
+        let currentStep = 0;
+        let isRunning = false;
+        let simulationInterval;
+
+        const svg = document.getElementById('graph-svg');
+        const openListView = document.getElementById('open-list');
+        const closeListView = document.getElementById('close-list');
+        const logView = document.getElementById('log');
+
+        function initGraph() {
+            svg.innerHTML = '';
+
+            for (const node in graphData) {
+                graphData[node].children.forEach(child => {
+                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    line.setAttribute('x1', nodeCoords[node].x);
+                    line.setAttribute('y1', nodeCoords[node].y);
+                    line.setAttribute('x2', nodeCoords[child].x);
+                    line.setAttribute('y2', nodeCoords[child].y);
+                    line.setAttribute('id', `line-${node}-${child}`);
+                    svg.appendChild(line);
+                });
+            }
+
+            for (const node in nodeCoords) {
+                const coord = nodeCoords[node];
+                const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                g.setAttribute('id', `group-${node}`);
+                g.classList.add('node-group');
+                
+                if (node === startNode) g.classList.add('start');
+                if (node === goalNode) g.classList.add('goal');
+
+                const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                circle.setAttribute('cx', coord.x);
+                circle.setAttribute('cy', coord.y);
+                circle.setAttribute('r', 28);
+                g.appendChild(circle);
+
+                const textLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                textLabel.setAttribute('x', coord.x);
+                textLabel.setAttribute('y', coord.y + 6);
+                textLabel.classList.add('node-label');
+                textLabel.textContent = node;
+                g.appendChild(textLabel);
+
+                const textValue = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                textValue.setAttribute('x', coord.x);
+                textValue.setAttribute('y', coord.y + 45);
+                textValue.classList.add('node-value');
+                textValue.textContent = `h=${graphData[node].value}`;
+                g.appendChild(textValue);
+
+                svg.appendChild(g);
+            }
+        }
+
+        function updateListsView() {
+            openListView.innerHTML = '';
+            openList.forEach(item => {
+                const div = document.createElement('div');
+                div.classList.add('list-item');
+                div.innerHTML = `${item.node} <span style="font-size:0.85em; font-weight:normal;">(h=${item.value})</span>`;
+                openListView.appendChild(div);
+            });
+
+            closeListView.innerHTML = '';
+            closeList.forEach(node => {
+                const div = document.createElement('div');
+                div.classList.add('list-item');
+                div.textContent = node;
+                closeListView.appendChild(div);
+            });
+        }
+
+        function updateNodeStyles(currentNode) {
+            document.querySelectorAll('.node-group').forEach(g => {
+                g.classList.remove('open', 'close', 'current');
+            });
+
+            openList.forEach(item => {
+                const group = document.getElementById(`group-${item.node}`);
+                if(group) group.classList.add('open');
+            });
+
+            closeList.forEach(node => {
+                const group = document.getElementById(`group-${node}`);
+                if(group) group.classList.add('close');
+            });
+
+            if (currentNode) {
+                const group = document.getElementById(`group-${currentNode}`);
+                if(group) {
+                    group.classList.remove('open', 'close'); 
+                    group.classList.add('current');
+                }
+            }
+        }
+
+        function highlightPath() {
+            let current = goalNode;
+            while (current !== startNode) {
+                const parent = cameFrom[current];
+                if (!parent) break;
+                
+                const lineEl = document.getElementById(`line-${parent}-${current}`);
+                if (lineEl) lineEl.classList.add('path');
+
+                const group = document.getElementById(`group-${current}`);
+                if(group) group.classList.add('path');
+                
+                current = parent;
+            }
+            document.getElementById(`group-${startNode}`).classList.add('path');
+        }
+
+        function addLog(message) {
+            const p = document.createElement('p');
+            p.innerHTML = `<strong>[Step ${currentStep}]</strong> ${message}`;
+            logView.appendChild(p);
+            logView.scrollTop = logView.scrollHeight;
+        }
+
+        function nextStep() {
+            if (openList.length === 0 && currentStep > 0) {
+                addLog("<span class='log-highlight'>탐색 실패: 더 이상 방문할 노드가 없습니다.</span>");
+                clearInterval(simulationInterval);
+                return;
+            }
+
+            currentStep++;
+
+            // Open List 정렬 (내림차순 - 가장 큰 값이 맨 앞으로)
+            openList.sort((a, b) => b.value - a.value);
+            
+            const currentItem = openList.shift();
+            const currentNode = currentItem.node;
+            
+            addLog(`Open List에서 <span class='log-highlight'>가장 함숫값이 큰 '${currentNode}'(h=${currentItem.value})</span> 방문.`);
+
+            if (currentNode === goalNode) {
+                addLog(`🎉 <span class='log-highlight'>목표 상태 '${goalNode}' 발견! 탐색 종료.</span>`);
+                closeList.push(currentNode);
+                updateListsView();
+                updateNodeStyles(currentNode);
+                highlightPath();
+                clearInterval(simulationInterval);
+                document.getElementById('step-btn').disabled = true;
+                document.getElementById('run-btn').disabled = true;
+                return;
+            }
+
+            closeList.push(currentNode);
+            const children = graphData[currentNode].children;
+            let discoveredCount = 0;
+
+            children.forEach(child => {
+                const inOpen = openList.some(item => item.node === child);
+                const inClose = closeList.includes(child);
+
+                if (!inOpen && !inClose) {
+                    openList.push({ node: child, value: graphData[child].value });
+                    cameFrom[child] = currentNode; 
+                    discoveredCount++;
+                }
+            });
+
+            if(discoveredCount > 0) {
+                addLog(`'${currentNode}'의 자식 노드를 탐색하여 ${discoveredCount}개의 새로운 경로를 발견했습니다.`);
+            } else {
+                addLog(`'${currentNode}'에서 더 이상 갈 수 있는 새로운 길이 없습니다.`);
+            }
+
+            openList.sort((a, b) => b.value - a.value);
+            updateListsView();
+            updateNodeStyles(currentNode);
+        }
+
+        function resetSimulation() {
+            clearInterval(simulationInterval);
+            currentStep = 0;
+            openList = [{ node: startNode, value: graphData[startNode].value }];
+            closeList = [];
+            cameFrom = {};
+            isRunning = false;
+            
+            document.getElementById('step-btn').disabled = false;
+            document.getElementById('run-btn').disabled = false;
+            
+            logView.innerHTML = '';
+            initGraph();
+            updateListsView();
+            updateNodeStyles(null);
+            
+            addLog("시뮬레이터가 초기화되었습니다. 시작 노드 A에서 탐색을 시작합니다.");
+        }
+
+        function runSimulation() {
+            if (isRunning) return;
+            isRunning = true;
+            document.getElementById('run-btn').disabled = true;
+            addLog("자동 실행 모드 시작...");
+            simulationInterval = setInterval(() => {
+                nextStep();
+            }, 1200);
+        }
+
+        document.getElementById('step-btn').addEventListener('click', () => {
+            clearInterval(simulationInterval); 
+            isRunning = false;
+            document.getElementById('run-btn').disabled = false;
+            nextStep();
+        });
+        document.getElementById('run-btn').addEventListener('click', runSimulation);
+        document.getElementById('reset-btn').addEventListener('click', resetSimulation);
+
+        resetSimulation();
+    </script>
+</body>
+</html>

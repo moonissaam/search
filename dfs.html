@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>DFS 스택 & 트리 시각화</title>
+    <style>
+        body { 
+            font-family: 'Malgun Gothic', sans-serif; 
+            background-color: #f4f7f6; 
+            margin: 0; 
+            padding: 20px; 
+            color: #333;
+        }
+        .container { 
+            display: flex; 
+            gap: 20px; 
+            max-width: 1200px; 
+            margin: 0 auto; 
+        }
+        .control-panel { 
+            flex: 1; 
+            background-color: white; 
+            padding: 25px; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05); 
+        }
+        .input-group { 
+            display: flex; 
+            gap: 10px; 
+            margin-bottom: 20px; 
+        }
+        #nodeInput { 
+            padding: 12px; 
+            border: 1px solid #ddd; 
+            border-radius: 6px; 
+            flex-grow: 1; 
+            font-size: 16px;
+            text-transform: uppercase;
+        }
+        .btn { 
+            padding: 12px 20px; 
+            border: none; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            color: white; 
+            transition: background-color 0.2s, transform 0.1s; 
+            font-weight: bold;
+            font-size: 16px;
+        }
+        .btn:active {
+            transform: scale(0.98);
+        }
+        .btn.push { background-color: #4CAF50; }
+        .btn.push:hover { background-color: #45a049; }
+        .btn.pop { background-color: #f44336; }
+        .btn.pop:hover { background-color: #e53935; }
+        
+        .stack-section, .visited-section { margin-top: 40px; }
+        
+        /* 스택 UI 수정: 위쪽이 열린 상자 모양 */
+        .stack-view { 
+            border: 3px solid #455a64; 
+            border-top: none; /* 위쪽을 열어둠 */
+            border-radius: 0 0 8px 8px;
+            height: 350px; 
+            width: 160px; 
+            position: relative; 
+            display: flex; 
+            flex-direction: column-reverse; /* 아래에서 위로 쌓이게 하는 핵심 CSS */
+            padding: 10px; 
+            box-sizing: border-box; 
+            margin: 0 auto;
+            background-color: #e0f7fa;
+        }
+        .stack-top { 
+            position: absolute; 
+            top: -25px; 
+            left: 0; 
+            width: 100%; 
+            text-align: center; 
+            color: #d32f2f; 
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .stack-bottom { 
+            position: absolute; 
+            bottom: -25px; 
+            left: 0; 
+            width: 100%; 
+            text-align: center; 
+            color: #888; 
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .stack-items { 
+            flex: 1; 
+            display: flex; 
+            flex-direction: column-reverse; 
+            gap: 8px; 
+            overflow-y: auto; 
+        }
+        .stack-item { 
+            background-color: #03A9F4; 
+            color: white; 
+            border-radius: 6px; 
+            padding: 12px; 
+            text-align: center; 
+            font-weight: bold; 
+            font-size: 18px;
+            width: 100%; 
+            box-sizing: border-box;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            /* 위에서 아래로 떨어지는 애니메이션 */
+            animation: dropIn 0.3s ease-out;
+        }
+        @keyframes dropIn {
+            from { opacity: 0; transform: translateY(-30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .visited-view { 
+            display: flex; 
+            gap: 8px; 
+            flex-wrap: wrap; 
+            margin-top: 15px;
+            min-height: 40px;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+        }
+        .visited-item { 
+            background-color: #9C27B0; 
+            color: white; 
+            border-radius: 20px; 
+            padding: 8px 16px; 
+            font-weight: bold; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .tree-panel { 
+            flex: 2; 
+            background-color: white; 
+            padding: 25px; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05); 
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .tree-view {
+            width: 100%;
+            max-width: 600px;
+        }
+        #tree-svg { 
+            width: 100%; 
+            height: 500px; 
+        }
+        .node { 
+            stroke: #03A9F4; 
+            stroke-width: 3px; 
+            fill: white; 
+            transition: all 0.3s ease; 
+        }
+        .node.visited { 
+            stroke: #9C27B0; 
+            fill: #E1BEE7; 
+            stroke-width: 4px;
+        }
+        .node.current {
+            stroke: #FF9800;
+            fill: #FFE082;
+            stroke-width: 5px;
+        }
+        .link { 
+            stroke: #b0bec5; 
+            stroke-width: 2px; 
+            transition: all 0.3s ease; 
+        }
+        .link.visited-path { 
+            stroke: #9C27B0; 
+            stroke-width: 4px; 
+        }
+        .node-text { 
+            font-family: Arial, sans-serif;
+            font-weight: bold; 
+            font-size: 20px; 
+            fill: #333; 
+            pointer-events: none;
+        }
+        
+        .instructions {
+            background-color: #e3f2fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="control-panel">
+            <h2>깊이우선탐색</h2>
+            <div class="instructions">
+                <strong>[DFS 탐색 시작하기]</strong><br>
+                1. 시작 노드 <strong>A</strong>를 입력하고 <strong>PUSH</strong>를 누르세요.<br>
+                2. <strong>POP</strong>을 누르면 스택의 가장 위(Top)에서 노드를 꺼내 방문하고, 자식 노드들을 스택에 넣습니다.<br>
+                3. 계속 POP을 누르며 스택이 어떻게 변하는지 확인해 보세요!
+            </div>
+            <div class="input-group">
+                <input type="text" id="nodeInput" maxlength="1" placeholder="노드 입력 (예: A)" required autocomplete="off">
+                <button id="pushButton" class="btn push">PUSH</button>
+                <button id="popButton" class="btn pop">POP</button>
+            </div>
+            <div class="stack-section">
+                <h3>스택 (Stack) 상태</h3>
+                <div id="stack-visualization" class="stack-view">
+                    <div class="stack-top">▼ TOP (Pop/Push 위치) ▼</div>
+                    <div class="stack-items"></div>
+                    <div class="stack-bottom">BOTTOM</div>
+                </div>
+            </div>
+            <div class="visited-section">
+                <h3>방문 완료 노드 (DFS 순서)</h3>
+                <div id="visited-list" class="visited-view"></div>
+            </div>
+        </div>
+        <div class="tree-panel">
+            <h2>트리 구조 탐색 현황</h2>
+            <div id="tree-visualization" class="tree-view">
+                <svg id="tree-svg" viewBox="0 0 800 600"></svg>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 트리 구조 데이터 정의
+        const treeData = {
+            'A': { children: ['B', 'C', 'D'], parents: [] },
+            'B': { children: ['E'], parents: ['A'] },
+            'C': { children: ['F'], parents: ['A'] },
+            'D': { children: ['G', 'H'], parents: ['A'] },
+            'E': { children: ['I', 'J'], parents: ['B'] },
+            'F': { children: [], parents: ['C'] },
+            'G': { children: [], parents: ['D'] },
+            'H': { children: ['K'], parents: ['D'] },
+            'I': { children: [], parents: ['E'] },
+            'J': { children: [], parents: ['E'] },
+            'K': { children: [], parents: ['H'] }
+        };
+
+        // 시각화를 위한 노드 좌표
+        const nodePositions = {
+            'A': { x: 400, y: 50 },
+            'B': { x: 200, y: 180 },
+            'C': { x: 400, y: 180 },
+            'D': { x: 600, y: 180 },
+            'E': { x: 100, y: 310 },
+            'F': { x: 400, y: 310 },
+            'G': { x: 500, y: 310 },
+            'H': { x: 700, y: 310 },
+            'I': { x: 50, y: 450 },
+            'J': { x: 150, y: 450 },
+            'K': { x: 700, y: 450 }
+        };
+
+        let stack = [];
+        let visitedNodes = [];
+
+        const nodeInput = document.getElementById('nodeInput');
+        const pushButton = document.getElementById('pushButton');
+        const popButton = document.getElementById('popButton');
+        const stackItemsView = document.querySelector('.stack-items');
+        const visitedListView = document.getElementById('visited-list');
+        const treeSvg = document.getElementById('tree-svg');
+
+        // 트리 초기 렌더링
+        function renderTree() {
+            treeSvg.innerHTML = '';
+
+            for (const nodeId in treeData) {
+                const node = treeData[nodeId];
+                node.children.forEach(childId => {
+                    const start = nodePositions[nodeId];
+                    const end = nodePositions[childId];
+                    const link = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                    link.setAttribute("x1", start.x);
+                    link.setAttribute("y1", start.y);
+                    link.setAttribute("x2", end.x);
+                    link.setAttribute("y2", end.y);
+                    link.setAttribute("class", "link");
+                    link.setAttribute("id", `link-${nodeId}-${childId}`);
+                    treeSvg.appendChild(link);
+                });
+            }
+
+            for (const nodeId in nodePositions) {
+                const pos = nodePositions[nodeId];
+                const nodeGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+                
+                const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                circle.setAttribute("cx", pos.x);
+                circle.setAttribute("cy", pos.y);
+                circle.setAttribute("r", 30);
+                circle.setAttribute("class", "node");
+                circle.setAttribute("id", `node-${nodeId}`);
+
+                const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                text.setAttribute("x", pos.x);
+                text.setAttribute("y", pos.y + 7); 
+                text.setAttribute("text-anchor", "middle");
+                text.setAttribute("class", "node-text");
+                text.textContent = nodeId;
+
+                nodeGroup.appendChild(circle);
+                nodeGroup.appendChild(text);
+                treeSvg.appendChild(nodeGroup);
+            }
+        }
+
+        // 💡 핵심 수정 부분: 스택 뷰 업데이트 로직
+        function updateStackView() {
+            stackItemsView.innerHTML = '';
+            // 이전 코드에서는 배열을 reverse() 했으나, CSS의 flex-direction: column-reverse 속성과
+            // 충돌하여 거꾸로 보이는 문제가 있었습니다.
+            // 이제 배열에 들어있는 순서대로(먼저 들어온 D가 먼저) HTML에 추가하면,
+            // CSS 속성에 의해 자동으로 맨 아래부터 D, C, B 순으로 쌓이게 됩니다.
+            stack.forEach(item => {
+                const div = document.createElement('div');
+                div.classList.add('stack-item');
+                div.textContent = item;
+                stackItemsView.appendChild(div);
+            });
+        }
+
+        // 방문 목록 뷰 업데이트
+        function updateVisitedView() {
+            visitedListView.innerHTML = '';
+            visitedNodes.forEach(item => {
+                const div = document.createElement('div');
+                div.classList.add('visited-item');
+                div.textContent = item;
+                visitedListView.appendChild(div);
+            });
+        }
+
+        // 트리 뷰 색상 업데이트
+        function updateTreeView(currentNodeId) {
+            document.querySelectorAll('.node').forEach(node => {
+                node.classList.remove('current');
+            });
+
+            if (currentNodeId) {
+                const nodeCircle = document.getElementById(`node-${currentNodeId}`);
+                if (nodeCircle) {
+                    nodeCircle.classList.add('visited');
+                    nodeCircle.classList.add('current'); 
+                }
+
+                const parentIds = treeData[currentNodeId].parents;
+                if (parentIds && parentIds.length > 0) {
+                    const parentId = parentIds[0];
+                    const linkElement = document.getElementById(`link-${parentId}-${currentNodeId}`);
+                    if (linkElement) {
+                        linkElement.classList.add('visited-path');
+                    }
+                }
+            }
+        }
+
+        // DFS 로직 통합 (자식 노드를 스택에 추가)
+        function integrateDfsLogic(poppedNodeId) {
+            if (visitedNodes.includes(poppedNodeId)) {
+                return; 
+            }
+            
+            // 방문 처리
+            visitedNodes.push(poppedNodeId);
+            updateVisitedView();
+            updateTreeView(poppedNodeId);
+
+            // 자식 노드들을 스택에 PUSH 
+            // 선생님의 예시처럼 A 방문 시 D, C, B 순서로 푸시하여 B가 Top에 오도록 함
+            const nodeData = treeData[poppedNodeId];
+            if (nodeData && nodeData.children.length > 0) {
+                const childrenToPush = [...nodeData.children].reverse();
+                childrenToPush.forEach(child => {
+                    if (!visitedNodes.includes(child) && !stack.includes(child)) {
+                        stack.push(child); // D -> C -> B 순서로 배열 끝에 추가됨
+                    }
+                });
+            }
+            updateStackView(); 
+        }
+
+        // PUSH 버튼 동작
+        function pushNode() {
+            const value = nodeInput.value.trim().toUpperCase();
+            if (value && /^[A-K]$/.test(value)) {
+                if (!stack.includes(value) && !visitedNodes.includes(value)) {
+                    stack.push(value);
+                    nodeInput.value = ''; 
+                    updateStackView();
+                } else {
+                    alert('이 노드는 이미 스택에 있거나 방문을 완료했습니다.');
+                }
+            } else {
+                alert('A부터 K 사이의 유효한 알파벳을 입력하세요.');
+            }
+            nodeInput.focus();
+        }
+
+        // POP 버튼 동작
+        function popNode() {
+            if (stack.length > 0) {
+                const poppedNode = stack.pop(); // 스택의 Top (배열의 가장 마지막 요소)을 꺼냄
+                updateStackView();
+                integrateDfsLogic(poppedNode);
+            } else {
+                alert('스택이 비어 있습니다. 탐색이 완료되었거나 시작 노드를 넣어주세요.');
+                document.querySelectorAll('.node').forEach(node => node.classList.remove('current'));
+            }
+            nodeInput.focus();
+        }
+
+        // 초기 설정
+        renderTree();
+        nodeInput.focus();
+
+        // 이벤트 리스너
+        pushButton.addEventListener('click', pushNode);
+        popButton.addEventListener('click', popNode);
+        nodeInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                pushNode();
+            }
+        });
+    </script>
+</body>
+</html>

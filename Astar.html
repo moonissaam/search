@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A* (에이스타) 탐색 시뮬레이터</title>
+    <style>
+        body {
+            font-family: 'Malgun Gothic', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f7f6;
+            color: #333;
+        }
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+        .control-panel {
+            flex: 1.2;
+            padding: 25px;
+            background-color: #fff;
+            box-shadow: 2px 0 12px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+        .control-panel h1 {
+            font-size: 24px;
+            margin-top: 0;
+            margin-bottom: 10px;
+            color: #673AB7; /* A* 알고리즘은 보라색 테마로 포인트 */
+        }
+        .instructions {
+            background-color: #ede7f6;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        .state-s { font-weight: bold; color: #d9534f; }
+        .state-g { font-weight: bold; color: #5cb85c; }
+        
+        .buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        button {
+            flex: 1;
+            padding: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: white;
+        }
+        button:active { transform: scale(0.98); }
+        #step-btn { background-color: #673AB7; }
+        #step-btn:hover { background-color: #512DA8; }
+        #run-btn { background-color: #009688; }
+        #run-btn:hover { background-color: #00796B; }
+        #reset-btn { background-color: #6c757d; }
+        #reset-btn:hover { background-color: #5a6268; }
+
+        .lists-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .list-section h3 {
+            margin: 0 0 8px 0;
+            font-size: 16px;
+            color: #444;
+        }
+        .list-view {
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            padding: 12px;
+            min-height: 60px;
+            background-color: #f8f9fa;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-content: flex-start;
+        }
+        .list-item {
+            background-color: #e2e6ea;
+            padding: 8px 12px;
+            border-radius: 15px;
+            font-size: 14px;
+            font-weight: bold;
+            border: 1px solid #ced4da;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            animation: popIn 0.3s ease-out;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .list-item .f-val { font-size: 16px; color: #D32F2F; margin-bottom: 2px;}
+        .list-item .gh-val { font-size: 11px; color: #555; font-weight: normal;}
+
+        @keyframes popIn {
+            0% { transform: scale(0.8); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        #open-list .list-item {
+            border-color: #D1C4E9;
+            background-color: #F3E5F5;
+            color: #4A148C;
+        }
+        #close-list .list-item {
+            border-color: #adb5bd;
+            background-color: #6c757d;
+            color: white;
+            justify-content: center;
+        }
+        #close-list .list-item .gh-val { display: none; }
+        #close-list .list-item .f-val { color: white; font-size: 14px; margin: 0;}
+
+        #log-section {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        #log-section h3 {
+            margin: 0 0 8px 0;
+            font-size: 16px;
+        }
+        #log {
+            flex-grow: 1;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            background-color: #fafafa;
+            overflow-y: auto;
+            font-size: 14px;
+            line-height: 1.6;
+            color: #555;
+            min-height: 150px;
+        }
+        #log p { margin: 0 0 8px 0; border-bottom: 1px dashed #eee; padding-bottom: 4px; }
+        #log p:last-child { border-bottom: none; }
+        .log-highlight { color: #673AB7; font-weight: bold; }
+        .log-math { background-color: #FFF9C4; padding: 2px 5px; border-radius: 4px; font-family: monospace; }
+
+        .graph-panel {
+            flex: 2;
+            padding: 25px;
+            display: flex;
+            flex-direction: column;
+            background-color: #f4f7f6;
+        }
+        .graph-panel h2 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            color: #333;
+            text-align: center;
+        }
+        #graph-container {
+            flex-grow: 1;
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+        #graph-svg {
+            width: 100%;
+            height: 100%;
+            max-width: 800px;
+        }
+
+        /* SVG 그래프 스타일 */
+        line {
+            stroke: #b0bec5;
+            stroke-width: 3px;
+            transition: stroke 0.3s;
+        }
+        line.path { stroke: #673AB7; stroke-width: 5px; }
+
+        .edge-label-bg {
+            fill: white;
+        }
+        .edge-label {
+            font-size: 16px;
+            font-weight: bold;
+            fill: #333;
+            text-anchor: middle;
+            dominant-baseline: central;
+        }
+
+        circle {
+            stroke: #90a4ae;
+            stroke-width: 3px;
+            fill: #fff;
+            transition: all 0.3s ease;
+        }
+        /* 상태별 노드 색상 */
+        .node-group.open circle { stroke: #9C27B0; fill: #F3E5F5; stroke-width: 4px; }
+        .node-group.close circle { stroke: #78909C; fill: #CFD8DC; }
+        .node-group.current circle { stroke: #FF9800; fill: #FFE082; stroke-width: 5px; transform: scale(1.1); transform-origin: center; }
+        .node-group.start circle { stroke: #d9534f; fill: #f2dede; }
+        .node-group.goal circle { stroke: #4CAF50; fill: #E8F5E9; stroke-width: 4px; }
+        .node-group.path circle { stroke: #673AB7; fill: #D1C4E9; stroke-width: 5px; }
+
+        text {
+            text-anchor: middle;
+            font-family: Arial, sans-serif;
+            pointer-events: none;
+        }
+        .node-label { font-size: 22px; font-weight: bold; fill: #333; }
+        .node-value { font-size: 14px; fill: #d9534f; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="control-panel">
+            <h1>A* 탐색 시뮬레이터</h1>
+            <div class="instructions">
+                <strong>[A* 알고리즘 핵심 공식]</strong><br>
+                <span style="font-size:16px; font-weight:bold; color:#D32F2F;">f(n) = g(n) + h(n)</span><br>
+                • <strong>g(n)</strong>: 시작점부터 현재 노드까지 <strong>실제 이동한 거리 (비용)</strong><br>
+                • <strong>h(n)</strong>: 현재 노드부터 목적지까지의 <strong>직선 예상 거리 (휴리스틱)</strong><br>
+                • <strong>f(n)</strong>: 총 예상 비용! Open List에서 <strong>f값이 가장 작은 노드</strong>를 먼저 탐색합니다.
+            </div>
+            
+            <div class="buttons">
+                <button id="step-btn">▶ 단계별 실행</button>
+                <button id="run-btn">⏩ 자동 실행</button>
+                <button id="reset-btn">🔄 초기화</button>
+            </div>
+
+            <div class="lists-container">
+                <div class="list-section">
+                    <h3>🟢 Open List (f(n) 오름차순)</h3>
+                    <div id="open-list" class="list-view"></div>
+                </div>
+                <div class="list-section">
+                    <h3>⚫ Close List (방문 완료)</h3>
+                    <div id="close-list" class="list-view"></div>
+                </div>
+            </div>
+
+            <div id="log-section">
+                <h3>📜 탐색 과정 로그</h3>
+                <div id="log"></div>
+            </div>
+        </div>
+
+        <div class="graph-panel">
+            <h2>지도 그래프 탐색 시각화</h2>
+            <div id="graph-container">
+                <svg id="graph-svg" viewBox="0 0 800 500"></svg>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 교재 이미지(`image_b05bac.png`) 기반 데이터
+        // h: 목적지 e까지의 직선거리 (우측 그림)
+        // edges: 연결된 도시와 실제 거리 비용(g) (좌측 그림)
+        const graphData = {
+            'a': { h: 12, edges: [{to: 'b', cost: 5}, {to: 'c', cost: 4}] },
+            'b': { h: 9, edges: [{to: 'a', cost: 5}, {to: 'c', cost: 5}, {to: 'd', cost: 8}, {to: 'e', cost: 9}] },
+            'c': { h: 7, edges: [{to: 'a', cost: 4}, {to: 'b', cost: 5}, {to: 'd', cost: 3}] },
+            'd': { h: 5, edges: [{to: 'b', cost: 8}, {to: 'c', cost: 3}, {to: 'e', cost: 5}] },
+            'e': { h: 0, edges: [{to: 'b', cost: 9}, {to: 'd', cost: 5}] }
+        };
+
+        // 이미지와 유사하게 노드 위치 좌표 설정
+        const nodeCoords = {
+            'a': { x: 150, y: 300 },
+            'b': { x: 300, y: 150 },
+            'c': { x: 350, y: 400 },
+            'd': { x: 550, y: 350 },
+            'e': { x: 650, y: 200 }
+        };
+
+        const startNode = 'a'; 
+        const goalNode = 'e'; 
+
+        let openList = []; // { node: 'a', g: 0, h: 12, f: 12 }
+        let closeList = []; 
+        let cameFrom = {}; 
+        let gScores = {}; // 각 노드까지의 최단 실제 거리 (g) 저장
+
+        let currentStep = 0;
+        let isRunning = false;
+        let simulationInterval;
+
+        const svg = document.getElementById('graph-svg');
+        const openListView = document.getElementById('open-list');
+        const closeListView = document.getElementById('close-list');
+        const logView = document.getElementById('log');
+
+        function initGraph() {
+            svg.innerHTML = '';
+            const drawnEdges = new Set();
+
+            // 간선 렌더링 (비용 텍스트 포함)
+            for (const node in graphData) {
+                graphData[node].edges.forEach(edge => {
+                    const edgeId = [node, edge.to].sort().join('-');
+                    if (!drawnEdges.has(edgeId)) {
+                        drawnEdges.add(edgeId);
+                        
+                        // 선 그리기
+                        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                        line.setAttribute('x1', nodeCoords[node].x);
+                        line.setAttribute('y1', nodeCoords[node].y);
+                        line.setAttribute('x2', nodeCoords[edge.to].x);
+                        line.setAttribute('y2', nodeCoords[edge.to].y);
+                        line.setAttribute('id', `line-${edgeId}`);
+                        svg.appendChild(line);
+
+                        // 비용 텍스트 배경 (가독성 향상)
+                        const midX = (nodeCoords[node].x + nodeCoords[edge.to].x) / 2;
+                        const midY = (nodeCoords[node].y + nodeCoords[edge.to].y) / 2;
+                        
+                        const bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                        bgRect.setAttribute('x', midX - 10);
+                        bgRect.setAttribute('y', midY - 10);
+                        bgRect.setAttribute('width', 20);
+                        bgRect.setAttribute('height', 20);
+                        bgRect.setAttribute('rx', 4);
+                        bgRect.classList.add('edge-label-bg');
+                        svg.appendChild(bgRect);
+
+                        // 비용 텍스트 그리기
+                        const textCost = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                        textCost.setAttribute('x', midX);
+                        textCost.setAttribute('y', midY);
+                        textCost.classList.add('edge-label');
+                        textCost.textContent = edge.cost;
+                        svg.appendChild(textCost);
+                    }
+                });
+            }
+
+            // 노드 렌더링
+            for (const node in nodeCoords) {
+                const coord = nodeCoords[node];
+                const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                g.setAttribute('id', `group-${node}`);
+                g.classList.add('node-group');
+                
+                if (node === startNode) g.classList.add('start');
+                if (node === goalNode) g.classList.add('goal');
+
+                const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                circle.setAttribute('cx', coord.x);
+                circle.setAttribute('cy', coord.y);
+                circle.setAttribute('r', 32);
+                g.appendChild(circle);
+
+                const textLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                textLabel.setAttribute('x', coord.x);
+                textLabel.setAttribute('y', coord.y + 2);
+                textLabel.classList.add('node-label');
+                textLabel.textContent = node;
+                g.appendChild(textLabel);
+
+                const textValue = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                textValue.setAttribute('x', coord.x);
+                textValue.setAttribute('y', coord.y + 50);
+                textValue.classList.add('node-value');
+                textValue.textContent = `h=${graphData[node].h}`;
+                g.appendChild(textValue);
+
+                svg.appendChild(g);
+            }
+        }
+
+        function updateListsView() {
+            openListView.innerHTML = '';
+            openList.forEach(item => {
+                const div = document.createElement('div');
+                div.classList.add('list-item');
+                // f, g, h 값 분리 표시
+                div.innerHTML = `
+                    <span class="f-val">${item.node} (f=${item.f})</span>
+                    <span class="gh-val">g=${item.g} + h=${item.h}</span>
+                `;
+                openListView.appendChild(div);
+            });
+
+            closeListView.innerHTML = '';
+            closeList.forEach(node => {
+                const div = document.createElement('div');
+                div.classList.add('list-item');
+                div.innerHTML = `<span class="f-val">${node}</span>`;
+                closeListView.appendChild(div);
+            });
+        }
+
+        function updateNodeStyles(currentNode) {
+            document.querySelectorAll('.node-group').forEach(g => {
+                g.classList.remove('open', 'close', 'current');
+            });
+
+            openList.forEach(item => {
+                const group = document.getElementById(`group-${item.node}`);
+                if(group) group.classList.add('open');
+            });
+
+            closeList.forEach(node => {
+                const group = document.getElementById(`group-${node}`);
+                if(group) group.classList.add('close');
+            });
+
+            if (currentNode) {
+                const group = document.getElementById(`group-${currentNode}`);
+                if(group) {
+                    group.classList.remove('open', 'close'); 
+                    group.classList.add('current');
+                }
+            }
+        }
+
+        function highlightPath() {
+            let current = goalNode;
+            while (current !== startNode) {
+                const parent = cameFrom[current];
+                if (!parent) break;
+                
+                const edgeId = [parent, current].sort().join('-');
+                const lineEl = document.getElementById(`line-${edgeId}`);
+                if (lineEl) lineEl.classList.add('path');
+
+                const group = document.getElementById(`group-${current}`);
+                if(group) group.classList.add('path');
+                
+                current = parent;
+            }
+            document.getElementById(`group-${startNode}`).classList.add('path');
+        }
+
+        function addLog(message) {
+            const p = document.createElement('p');
+            p.innerHTML = `<strong>[Step ${currentStep}]</strong> ${message}`;
+            logView.appendChild(p);
+            logView.scrollTop = logView.scrollHeight;
+        }
+
+        function nextStep() {
+            if (openList.length === 0 && currentStep > 0) {
+                addLog("<span class='log-highlight'>탐색 실패: 길을 찾을 수 없습니다.</span>");
+                clearInterval(simulationInterval);
+                return;
+            }
+
+            currentStep++;
+
+            // 💡 A* 정렬 (f값이 가장 작은 것을 맨 앞으로)
+            openList.sort((a, b) => a.f - b.f);
+            
+            const currentItem = openList.shift();
+            const currentNode = currentItem.node;
+            
+            addLog(`Open List에서 총 비용(f)이 가장 작은 <span class='log-highlight'>'${currentNode}' 선택 (f=${currentItem.f})</span>`);
+
+            if (currentNode === goalNode) {
+                addLog(`🎉 <span class='log-highlight'>목표 도시 '${goalNode}' 도착! 탐색 종료.</span>`);
+                closeList.push(currentNode);
+                updateListsView();
+                updateNodeStyles(currentNode);
+                highlightPath();
+                clearInterval(simulationInterval);
+                document.getElementById('step-btn').disabled = true;
+                document.getElementById('run-btn').disabled = true;
+                return;
+            }
+
+            closeList.push(currentNode);
+            const neighbors = graphData[currentNode].edges;
+            
+            let logMsg = `'${currentNode}'의 이웃 도시들 거리 계산:<ul>`;
+
+            neighbors.forEach(edge => {
+                const neighbor = edge.to;
+                const costToNeighbor = edge.cost;
+                
+                // 새로운 실제 이동 거리 (g) 계산
+                const tentative_g = gScores[currentNode] + costToNeighbor;
+
+                // 이미 Close List에 있고, 기존에 찾은 길이 더 짧다면 무시
+                if (closeList.includes(neighbor) && tentative_g >= gScores[neighbor]) {
+                    return; 
+                }
+
+                // 처음 발견했거나(Infinity), 더 짧은 새로운 길을 찾았을 경우
+                if (tentative_g < gScores[neighbor]) {
+                    cameFrom[neighbor] = currentNode; // 경로 갱신
+                    gScores[neighbor] = tentative_g;  // 최단 거리 갱신
+                    
+                    const hScore = graphData[neighbor].h;
+                    const fScore = tentative_g + hScore;
+                    
+                    logMsg += `<li>도시 ${neighbor} : <span class="log-math">g(${tentative_g}) + h(${hScore}) = f(${fScore})</span></li>`;
+
+                    // Open List에 이미 있다면 값 갱신, 없다면 추가
+                    const existingNodeIndex = openList.findIndex(item => item.node === neighbor);
+                    if (existingNodeIndex !== -1) {
+                        openList[existingNodeIndex].g = tentative_g;
+                        openList[existingNodeIndex].f = fScore;
+                    } else {
+                        openList.push({ node: neighbor, g: tentative_g, h: hScore, f: fScore });
+                    }
+                }
+            });
+            logMsg += "</ul>";
+            addLog(logMsg);
+
+            // 다음 표시를 위해 다시 정렬
+            openList.sort((a, b) => a.f - b.f);
+            updateListsView();
+            updateNodeStyles(currentNode);
+        }
+
+        function resetSimulation() {
+            clearInterval(simulationInterval);
+            currentStep = 0;
+            
+            // 모든 노드의 gScore를 무한대로 초기화, 시작 노드만 0
+            for(let node in graphData) {
+                gScores[node] = Infinity;
+            }
+            gScores[startNode] = 0;
+
+            const initialH = graphData[startNode].h;
+            openList = [{ node: startNode, g: 0, h: initialH, f: initialH }];
+            closeList = [];
+            cameFrom = {};
+            isRunning = false;
+            
+            document.getElementById('step-btn').disabled = false;
+            document.getElementById('run-btn').disabled = false;
+            
+            logView.innerHTML = '';
+            initGraph();
+            updateListsView();
+            updateNodeStyles(null);
+            
+            addLog(`시뮬레이터 초기화. 출발지 '${startNode}'에서 탐색을 시작합니다. (초기 예상 비용 f=${initialH})`);
+        }
+
+        function runSimulation() {
+            if (isRunning) return;
+            isRunning = true;
+            document.getElementById('run-btn').disabled = true;
+            addLog("자동 실행 모드 시작...");
+            simulationInterval = setInterval(() => {
+                nextStep();
+            }, 1500); // 학생들이 계산 과정을 볼 수 있게 약간 여유로운 속도 (1.5초)
+        }
+
+        document.getElementById('step-btn').addEventListener('click', () => {
+            clearInterval(simulationInterval); 
+            isRunning = false;
+            document.getElementById('run-btn').disabled = false;
+            nextStep();
+        });
+        document.getElementById('run-btn').addEventListener('click', runSimulation);
+        document.getElementById('reset-btn').addEventListener('click', resetSimulation);
+
+        resetSimulation();
+    </script>
+</body>
+</html>
