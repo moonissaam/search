@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>나의 5개 웹페이지 링크 포털</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background-color: #f9f9f9; }
+        h1 { color: #333; }
+        .link-container { display: flex; flex-direction: column; align-items: center; gap: 15px; margin-top: 30px; }
+        .btn { display: block; width: 250px; padding: 15px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: 0.3s; }
+        .btn:hover { background-color: #0056b3; transform: translateY(-2px); }
+    </style>
+</head>
+<body>
+
+    <h1>나의 웹 프로젝트 링크 모음</h1>
+    <p>구글 스프레드시트와 연동되어 실시간으로 링크가 업데이트됩니다.</p>
+
+    <div class="link-container" id="links">
+        <!-- 구글 시트에서 불러온 링크들이 여기에 자동으로 생깁니다 -->
+        로딩 중...
+    </div>
+
+    <script>
+        // ⚠️ 주의: 아래 주소에 '2단계'에서 복사한 구글 시트의 CSV 주소를 넣으세요!
+        const googleSheetCsvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSA-HruUv5vyPVO2emlHrN7ShoqUrZQqeHsVVUWjFo2l1ELYXmqKpXfacb6OyJohEz0CZlz1FJ9dbP6/pub?output=csv";
+
+        async function loadLinks() {
+            try {
+                const response = await fetch(googleSheetCsvUrl);
+                const data = await response.text();
+                
+                // CSV 데이터를 한 줄씩 나누기
+                const lines = data.split("\n");
+                let htmlContent = "";
+
+                // 첫 번째 줄(제목행)을 제외하고 반복문 돌리기
+                for (let i = 1; i < lines.length; i++) {
+                    if (!lines[i].trim()) continue; // 빈 줄 건너뛰기
+                    
+                    const columns = lines[i].split(","); // 쉼표로 열 나누기
+                    const name = columns[0].replace(/"/g, ""); // 따옴표 제거
+                    const url = columns[1].replace(/"/g, "").trim();
+
+                    if (name && url) {
+                        htmlContent += `<a href="${url}" class="btn" target="_blank">${name}</a>`;
+                    }
+                }
+
+                document.getElementById("links").innerHTML = htmlContent;
+            } catch (error) {
+                document.getElementById("links").innerHTML = "링크를 불러오는 데 실패했습니다.";
+                console.error(error);
+            }
+        }
+
+        // 페이지가 열리면 실행
+        loadLinks();
+    </script>
+</body>
+</html>
